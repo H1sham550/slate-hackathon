@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { YoutubeTranscript } from "youtube-transcript";
 
 export async function POST(req: Request) {
   try {
@@ -8,30 +9,57 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "URL is required" }, { status: 400 });
     }
 
-    // Extract video ID for metadata simulation
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-    const match = url.match(regExp);
-    const videoId = (match && match[2].length === 11) ? match[2] : "unknown";
+    // More robust video ID extraction
+    let videoId = null;
+    try {
+      const urlObj = new URL(url);
+      if (urlObj.hostname === "youtu.be") {
+        videoId = urlObj.pathname.slice(1);
+      } else if (urlObj.hostname.includes("youtube.com")) {
+        videoId = urlObj.searchParams.get("v");
+        if (!videoId && urlObj.pathname.startsWith("/embed/")) {
+          videoId = urlObj.pathname.split("/")[2];
+        }
+      }
+    } catch (e) {
+      // Fallback to regex if URL parsing fails
+      const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+      const match = url.match(regExp);
+      videoId = (match && match[2].length === 11) ? match[2] : null;
+    }
 
-    // Simulate fetching transcript
-    // In a real production app, we would use 'youtube-transcript' or an official API
-    const mockTranscript = `
-      Welcome to this lecture on computer architecture and system design. 
-      Today we are diving into the fundamental concepts of how modern processors handle instruction pipelines and out-of-order execution. 
-      We'll discuss the Von Neumann architecture, the role of the Arithmetic Logic Unit, and how cache hierarchies (L1, L2, L3) significantly impact performance. 
-      Specifically, we will look at how speculative execution helps in minimizing branch misprediction penalties. 
-      This is crucial for understanding why certain coding patterns are faster than others on modern hardware.
-    `.trim();
+    if (!videoId) {
+      return NextResponse.json({ error: "Could not extract video ID from the provided URL. Please use a standard YouTube link." }, { status: 400 });
+    }
 
-    return NextResponse.json({
-      success: true,
-      text: mockTranscript,
-      title: `YouTube Lecture (${videoId})`,
-      videoId: videoId
-    });
+    console.log(`[YouTube API] Fetching transcript for ID: ${videoId}`);
+
+    // Fetch real transcript
+    try {
+      const transcriptChunks = await YoutubeTranscript.fetchTranscript(videoId);
+      
+      if (!transcriptChunks || transcriptChunks.length === 0) {
+        throw new Error("No transcript chunks returned");
+      }
+
+      const fullText = transcriptChunks.map(chunk => chunk.text).join(" ");
+      console.log(`[YouTube API] Successfully fetched ${fullText.length} characters of transcript.`);
+
+      return NextResponse.json({
+        success: true,
+        text: fullText,
+        title: `YouTube Lecture (${videoId})`,
+        videoId: videoId
+      });
+    } catch (transcriptError: any) {
+      console.error("[YouTube API] Transcript Fetch Error:", transcriptError.message || transcriptError);
+      return NextResponse.json({ 
+        error: "YouTube transcript not available for this video. This often happens if the video is set to 'No captions' or if YouTube is restricting access. Try a different video." 
+      }, { status: 404 });
+    }
 
   } catch (error: any) {
-    console.error("YouTube Transcript API Error:", error);
-    return NextResponse.json({ error: "Failed to fetch YouTube transcript" }, { status: 500 });
+    console.error("[YouTube API] Global Error:", error);
+    return NextResponse.json({ error: "Internal server error while fetching transcript." }, { status: 500 });
   }
 }

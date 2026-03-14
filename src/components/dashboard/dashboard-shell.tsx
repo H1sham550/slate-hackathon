@@ -47,6 +47,7 @@ export function DashboardShell() {
 
     setIsLoading(true);
     setErrorMessage(null);
+    setData(null); // Clear previous results immediately
     try {
       let transcript = "";
       let title = "Untitled Lecture";
@@ -62,6 +63,15 @@ export function DashboardShell() {
         if (!ytRes.ok) throw new Error(ytData.error || "Failed to fetch YouTube transcript.");
         transcript = ytData.text;
         title = ytData.title || "YouTube Lecture";
+
+        // Truncate transcript if it's extremely long to avoid 413 Payload Too Large errors
+        // 10,000 words is usually safe for most LLM limits and body sizes
+        const words = transcript.split(/\s+/);
+        if (words.length > 10000) {
+          console.warn("Truncating extremely long transcript for processing.");
+          transcript = words.slice(0, 10000).join(" ") + "... [Transcript truncated for length]";
+        }
+
       } else {
         setStatusMessage("Uploading & transcribing audio...");
         const formData = new FormData();
@@ -83,11 +93,19 @@ export function DashboardShell() {
       const transformRes = await fetch("/api/transform", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transcript }),
+        body: JSON.stringify({ 
+          transcript,
+          isYoutube: inputMode === "youtube" // Pass hint to backend
+        }),
       });
       const result = await transformRes.json();
       
-      if (!transformRes.ok) throw new Error(result.error || "Transformation failed.");
+      if (!transformRes.ok) {
+        if (transformRes.status === 413) {
+          throw new Error("The lecture transcript is too large for the AI to process at once. Try a shorter segment or video.");
+        }
+        throw new Error(result.error || "Transformation failed.");
+      }
       
       setData(result);
 
