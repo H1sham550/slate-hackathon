@@ -1,7 +1,32 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
-import { BookOpenText } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { BookOpenText, Loader2 } from "lucide-react";
+import { signInUser } from "@/lib/supabase";
 
 export default function LoginPage() {
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError("");
+
+    try {
+      await signInUser(email, password);
+      router.push("/dashboard");
+    } catch (err: any) {
+      setError(err.message || "Failed to sign in. Please verify your credentials.");
+      setIsLoading(false);
+    }
+  };
+
   return (
     <main className="flex min-h-screen items-center justify-center p-4">
       <div className="glass-panel w-full max-w-md rounded-[2rem] p-8 sm:p-10">
@@ -13,7 +38,13 @@ export default function LoginPage() {
           <p className="mt-3 text-sm font-medium text-slate-400">Sign in to track your learning journey.</p>
         </div>
 
-        <form className="space-y-5">
+        {error && (
+          <div className="mb-6 rounded-2xl border border-red-500/50 bg-red-500/10 p-4 text-center text-sm font-medium text-red-400">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleLogin} className="space-y-5">
           <div>
             <label htmlFor="email" className="mb-2 block text-sm font-semibold text-slate-300">
               Email Address
@@ -21,6 +52,8 @@ export default function LoginPage() {
             <input
               id="email"
               type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className="w-full rounded-2xl border border-slate-700/50 bg-slate-900/50 px-5 py-3.5 text-slate-100 outline-none ring-1 ring-transparent backdrop-blur-sm transition-all focus:border-indigo-500/50 focus:bg-slate-900/80 focus:ring-indigo-500/50"
               placeholder="you@example.com"
               required
@@ -33,17 +66,20 @@ export default function LoginPage() {
             <input
               id="password"
               type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               className="w-full rounded-2xl border border-slate-700/50 bg-slate-900/50 px-5 py-3.5 text-slate-100 outline-none ring-1 ring-transparent backdrop-blur-sm transition-all focus:border-indigo-500/50 focus:bg-slate-900/80 focus:ring-indigo-500/50"
               placeholder="••••••••"
               required
             />
           </div>
-          <Link href="/profile" className="group relative mt-8 flex w-full items-center justify-center overflow-hidden rounded-2xl bg-indigo-600 px-4 py-3.5 text-sm font-bold text-white shadow-[0_0_20px_rgba(79,70,229,0.3)] transition-all hover:bg-indigo-500 hover:shadow-[0_0_30px_rgba(79,70,229,0.5)]">
+          <button type="submit" disabled={isLoading} className="group relative mt-8 flex w-full items-center justify-center overflow-hidden rounded-2xl bg-indigo-600 px-4 py-3.5 text-sm font-bold text-white shadow-[0_0_20px_rgba(79,70,229,0.3)] transition-all hover:bg-indigo-500 hover:shadow-[0_0_30px_rgba(79,70,229,0.5)] disabled:opacity-50">
             <div className="absolute inset-0 flex h-full w-full justify-center [transform:skew(-12deg)_translateX(-150%)] group-hover:duration-1000 group-hover:[transform:skew(-12deg)_translateX(150%)]">
               <div className="relative h-full w-10 bg-white/20" />
             </div>
-            <span className="relative">Sign In</span>
-          </Link>
+            {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
+            <span className="relative">{isLoading ? "Signing In..." : "Sign In"}</span>
+          </button>
         </form>
 
         <p className="mt-6 text-center text-sm text-slate-400">

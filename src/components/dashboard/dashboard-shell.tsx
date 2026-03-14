@@ -12,16 +12,35 @@ export function DashboardShell() {
   const [adaptiveMode, setAdaptiveMode] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [data, setData] = useState<TransformationData | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const handleProcess = async () => {
+    if (!selectedFile) {
+      alert("Please select an audio or video file first.");
+      return;
+    }
+
     setIsLoading(true);
     try {
-      const response = await fetch("/api/transform", {
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+
+      // 1. Transcribe the audio using Groq
+      const transcribeRes = await fetch("/api/transcribe", {
+        method: "POST",
+        body: formData,
+      });
+      const transcribeData = await transcribeRes.json();
+
+      if (!transcribeRes.ok) throw new Error(transcribeData.error);
+
+      // 2. Transform the text (pending GITHUB_TOKEN integration)
+      const transformRes = await fetch("/api/transform", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transcript: "Simulated transcription..." }),
+        body: JSON.stringify({ transcript: transcribeData.text || "Simulated transcript" }),
       });
-      const result = await response.json();
+      const result = await transformRes.json();
       setData(result);
     } catch (error) {
       console.error("Failed to process lecture", error);
@@ -44,10 +63,22 @@ export function DashboardShell() {
             </div>
             
             <div className="flex flex-wrap items-center gap-4">
+              <label className="cursor-pointer group relative flex items-center gap-2 overflow-hidden rounded-2xl border border-slate-700/50 bg-slate-900/50 px-4 py-3 text-sm font-medium text-slate-300 transition-all hover:bg-slate-800/60 hover:text-indigo-400">
+                <input 
+                  type="file" 
+                  accept="audio/*,video/*" 
+                  className="hidden" 
+                  onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                />
+                <span className="truncate max-w-[150px]">
+                  {selectedFile ? selectedFile.name : "Choose File"}
+                </span>
+              </label>
+
               <button
                 onClick={handleProcess}
-                disabled={isLoading}
-                className="group relative flex items-center gap-2 overflow-hidden rounded-2xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-[0_0_20px_rgba(79,70,229,0.4)] transition-all hover:bg-indigo-500 hover:shadow-[0_0_25px_rgba(79,70,229,0.6)] disabled:opacity-50"
+                disabled={isLoading || !selectedFile}
+                className="group relative flex items-center gap-2 overflow-hidden rounded-2xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-[0_0_20px_rgba(79,70,229,0.4)] transition-all hover:bg-indigo-500 hover:shadow-[0_0_25px_rgba(79,70,229,0.6)] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <div className="absolute inset-0 flex h-full w-full justify-center [transform:skew(-12deg)_translateX(-150%)] group-hover:duration-1000 group-hover:[transform:skew(-12deg)_translateX(150%)]">
                   <div className="relative h-full w-8 bg-white/20" />
