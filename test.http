@@ -1,0 +1,38 @@
+### Test 1: Create a Lecture
+POST http://localhost:3000/api/lectures
+Content-Type: application/json
+
+{
+  "title": "Neural Networks - Lecture 1",
+  "sourceType": "audio",
+  "audioPath": "lecture-audio/user-123/nn-1.mp3",
+  "language": "en",
+  "networkMode": "normal"
+}
+
+###
+
+### Test 2: Transcribe Audio
+POST http://localhost:3000/api/transcribe
+Content-Type: application/json
+
+{
+  "lectureId": "f2d2af4a-3769-477f-bf26-62195de45b1a",
+  "audioPath": "lecture-audio/user-123/nn-1.mp3",
+  "provider": "groq",
+  "language": "en"
+}
+
+###
+
+### Test 3: Transform Transcript (Mocked GitHub Models)
+POST http://localhost:3000/api/transform
+Content-Type: application/json
+
+{
+  "lectureId": "f2d2af4a-3769-477f-bf26-62195de45b1a",
+  "transcript": "Today we cover perceptrons and gradient descent...",
+  "targetLanguage": "en",
+  "networkMode": "adaptive",
+  "provider": "github-models"
+}
