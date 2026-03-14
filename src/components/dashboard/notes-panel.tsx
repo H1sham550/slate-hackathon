@@ -1,18 +1,16 @@
-const notes = `# Neural Networks: Lecture Summary
+type NotesPanelProps = {
+  content?: string;
+};
 
-## Core Ideas
-- A neural network is a layered function approximator.
-- Backpropagation computes gradients efficiently.
-- Generalization depends on data quality and regularization.
-
-## Exam Tip
-Focus on the relationship between **loss function**, **gradient descent**, and **learning rate**.`;
-
-export function NotesPanel() {
+export function NotesPanel({ content }: NotesPanelProps) {
   return (
-    <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <h4 className="mb-3 text-sm font-semibold uppercase tracking-wide text-indigo-600">AI Notes</h4>
-      <pre className="whitespace-pre-wrap font-sans text-sm leading-6 text-slate-700">{notes}</pre>
+    <article className="glass-card rounded-3xl p-6">
+      <h4 className="mb-4 text-sm font-bold uppercase tracking-wider text-indigo-400">AI Notes</h4>
+      {content ? (
+        <pre className="whitespace-pre-wrap font-sans text-sm leading-6 text-slate-300">{content}</pre>
+      ) : (
+        <p className="text-sm text-slate-500 italic">No notes generated yet.</p>
+      )}
     </article>
   );
 }

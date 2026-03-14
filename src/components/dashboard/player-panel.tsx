@@ -11,15 +11,15 @@ export function PlayerPanel({ adaptiveMode }: PlayerPanelProps) {
   }
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <section className="glass-panel rounded-3xl p-6">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-slate-900">Lecture Player</h3>
-        <div className="flex items-center gap-2 text-xs text-slate-500">
-          <PlayCircle className="h-4 w-4 text-indigo-500" />
+        <h3 className="text-lg font-semibold text-slate-100">Lecture Player</h3>
+        <div className="flex items-center gap-2 text-xs text-slate-400">
+          <PlayCircle className="h-4 w-4 text-indigo-400" />
           Streaming in Normal Mode
         </div>
       </div>
-      <div className="aspect-video w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-900/95">
+      <div className="aspect-video w-full overflow-hidden rounded-2xl border border-slate-800/60 bg-slate-950/50 shadow-inner">
         <video
           className="h-full w-full"
           controls

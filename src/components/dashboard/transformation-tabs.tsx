@@ -5,10 +5,15 @@ import { NotesPanel } from "@/components/dashboard/notes-panel";
 import { DiagramsPanel } from "@/components/dashboard/diagrams-panel";
 import { FlashcardsPanel } from "@/components/dashboard/flashcards-panel";
 import { QuizPanel } from "@/components/dashboard/quiz-panel";
+import { TransformationData } from "@/types";
 
-export function TransformationTabs() {
+type TransformationTabsProps = {
+  data: TransformationData | null;
+};
+
+export function TransformationTabs({ data }: TransformationTabsProps) {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <section className="glass-panel overflow-hidden rounded-3xl p-6">
       <Tabs defaultValue="notes" className="w-full">
         <TabsList>
           <TabsTrigger value="notes">Notes</TabsTrigger>
@@ -17,16 +22,16 @@ export function TransformationTabs() {
           <TabsTrigger value="quiz">Quiz</TabsTrigger>
         </TabsList>
         <TabsContent value="notes">
-          <NotesPanel />
+          <NotesPanel content={data?.notes} />
         </TabsContent>
         <TabsContent value="diagrams">
-          <DiagramsPanel />
+          <DiagramsPanel code={data?.mermaidCode} />
         </TabsContent>
         <TabsContent value="flashcards">
           <FlashcardsPanel />
         </TabsContent>
         <TabsContent value="quiz">
-          <QuizPanel />
+          <QuizPanel questions={data?.quiz} />
         </TabsContent>
       </Tabs>
     </section>

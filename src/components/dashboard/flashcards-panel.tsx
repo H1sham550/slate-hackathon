@@ -40,12 +40,12 @@ export function FlashcardsPanel() {
           <button
             key={card.question}
             onClick={() => toggle(index)}
-            className="min-h-40 rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:border-indigo-200 hover:shadow"
+            className="glass-card flex min-h-40 flex-col justify-center rounded-3xl p-6 text-left hover:-translate-y-1 hover:shadow-[0_10px_30px_rgba(79,70,229,0.15)] ring-1 ring-transparent hover:ring-indigo-500/30"
           >
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-indigo-600">
+            <p className="mb-3 text-xs font-bold uppercase tracking-wider text-indigo-400">
               {isFlipped ? "Answer" : "Question"}
             </p>
-            <p className="text-sm leading-6 text-slate-700">
+            <p className="text-sm leading-6 text-slate-300">
               {isFlipped ? card.answer : card.question}
             </p>
           </button>
