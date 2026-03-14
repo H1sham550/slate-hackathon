@@ -12,13 +12,16 @@ import { supabase, upload_lecture } from "@/lib/supabase";
 
 export function DashboardShell() {
   const router = useRouter();
-  const [adaptiveMode, setAdaptiveMode] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [data, setData] = useState<TransformationData | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [mediaUrl, setMediaUrl] = useState<string | null>(null);
+  const [mediaType, setMediaType] = useState<"video" | "audio" | "youtube" | null>(null);
+  const [inputMode, setInputMode] = useState<"audio" | "video" | "youtube">("video");
+  const [youtubeUrl, setYoutubeUrl] = useState("");
 
   useEffect(() => {
     async function checkUser() {
@@ -33,26 +36,46 @@ export function DashboardShell() {
   }, [router]);
 
   const handleProcess = async () => {
-    if (!selectedFile) {
+    if (inputMode !== "youtube" && !selectedFile) {
       alert("Please select an audio or video file first.");
+      return;
+    }
+    if (inputMode === "youtube" && !youtubeUrl) {
+      alert("Please enter a YouTube URL.");
       return;
     }
 
     setIsLoading(true);
     setErrorMessage(null);
-    setStatusMessage("Uploading & transcribing audio...");
     try {
-      const formData = new FormData();
-      formData.append("file", selectedFile);
+      let transcript = "";
+      let title = "Untitled Lecture";
 
-      // 1. Transcribe the audio using Groq
-      const transcribeRes = await fetch("/api/transcribe", {
-        method: "POST",
-        body: formData,
-      });
-      const transcribeData = await transcribeRes.json();
+      if (inputMode === "youtube") {
+        setStatusMessage("Fetching YouTube transcript...");
+        const ytRes = await fetch("/api/youtube-transcript", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: youtubeUrl }),
+        });
+        const ytData = await ytRes.json();
+        if (!ytRes.ok) throw new Error(ytData.error || "Failed to fetch YouTube transcript.");
+        transcript = ytData.text;
+        title = ytData.title || "YouTube Lecture";
+      } else {
+        setStatusMessage("Uploading & transcribing audio...");
+        const formData = new FormData();
+        formData.append("file", selectedFile!);
 
-      if (!transcribeRes.ok) throw new Error(transcribeData.error || "Transcription failed.");
+        const transcribeRes = await fetch("/api/transcribe", {
+          method: "POST",
+          body: formData,
+        });
+        const transcribeData = await transcribeRes.json();
+        if (!transcribeRes.ok) throw new Error(transcribeData.error || "Transcription failed.");
+        transcript = transcribeData.text;
+        title = selectedFile!.name.replace(/\.[^/.]+$/, "");
+      }
 
       setStatusMessage("Generating notes, diagrams & quizzes with AI...");
 
@@ -60,7 +83,7 @@ export function DashboardShell() {
       const transformRes = await fetch("/api/transform", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transcript: transcribeData.text || "Simulated transcript" }),
+        body: JSON.stringify({ transcript }),
       });
       const result = await transformRes.json();
       
@@ -68,14 +91,14 @@ export function DashboardShell() {
       
       setData(result);
 
-      // 3. Save the result to Supabase (non-blocking — don't crash the pipeline)
+      // 3. Save the result to Supabase
       if (userId) {
         try {
           setStatusMessage("Saving to your profile...");
           await upload_lecture({
             user_id: userId,
-            title: selectedFile.name.replace(/\.[^/.]+$/, "") || "Untitled Lecture",
-            transcript: transcribeData.text,
+            title: title,
+            transcript: transcript,
             hierarchical_notes: result.notes,
             diagram_code: result.mermaidCode,
             summary: result.summary,
@@ -111,22 +134,69 @@ export function DashboardShell() {
             </div>
             
             <div className="flex flex-wrap items-center gap-4">
-              <label className="cursor-pointer group relative flex items-center gap-2 overflow-hidden rounded-2xl border border-slate-700/50 bg-slate-900/50 px-4 py-3 text-sm font-medium text-slate-300 transition-all hover:bg-slate-800/60 hover:text-indigo-400">
-                <input 
-                  type="file" 
-                  accept="audio/*,video/*" 
-                  className="hidden" 
-                  onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-                />
-                <span className="truncate max-w-[150px]">
-                  {selectedFile ? selectedFile.name : "Choose File"}
-                </span>
-              </label>
+              {/* Input Mode Selector */}
+              <div className="flex items-center gap-2 rounded-2xl bg-slate-900/50 p-1.5 ring-1 ring-white/10">
+                {(["video", "audio", "youtube"] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => {
+                      setInputMode(mode);
+                      setSelectedFile(null);
+                      setMediaUrl(null);
+                      setMediaType(null);
+                      setYoutubeUrl("");
+                    }}
+                    className={`rounded-xl px-4 py-2 text-xs font-bold uppercase tracking-wider transition-all ${
+                      inputMode === mode 
+                        ? "bg-indigo-600 text-white shadow-lg" 
+                        : "text-slate-500 hover:text-slate-300"
+                    }`}
+                  >
+                    {mode}
+                  </button>
+                ))}
+              </div>              {inputMode === "youtube" ? (
+                <div className="flex items-center gap-2 rounded-2xl border border-slate-700/50 bg-slate-900/50 px-4 py-2.5 ring-1 ring-white/5 focus-within:ring-indigo-500/50 transition-all">
+                  <input
+                    type="text"
+                    placeholder="Paste YouTube URL..."
+                    className="bg-transparent text-sm text-slate-200 outline-none w-[250px]"
+                    value={youtubeUrl}
+                    onChange={(e) => {
+                      setYoutubeUrl(e.target.value);
+                      setMediaUrl(e.target.value);
+                      setMediaType("youtube");
+                    }}
+                  />
+                </div>
+              ) : (
+                <label className="cursor-pointer group relative flex items-center gap-3 overflow-hidden rounded-2xl border border-slate-700/50 bg-slate-900/50 px-6 py-2.5 text-sm font-medium text-slate-300 transition-all hover:bg-slate-800/60 hover:text-indigo-400">
+                  <input 
+                    type="file" 
+                    accept={inputMode === "video" ? "video/*" : "audio/*"}
+                    className="hidden" 
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] || null;
+                      setSelectedFile(file);
+                      if (file) {
+                        setMediaUrl(URL.createObjectURL(file));
+                        setMediaType(inputMode);
+                      } else {
+                        setMediaUrl(null);
+                        setMediaType(null);
+                      }
+                    }}
+                  />
+                  <span className="truncate max-w-[180px]">
+                    {selectedFile ? selectedFile.name : `Select ${inputMode === "video" ? "Video" : "Audio"}`}
+                  </span>
+                </label>
+              )}
 
               <button
                 onClick={handleProcess}
-                disabled={isLoading || !selectedFile}
-                className="group relative flex items-center gap-2 overflow-hidden rounded-2xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-[0_0_20px_rgba(79,70,229,0.4)] transition-all hover:bg-indigo-500 hover:shadow-[0_0_25px_rgba(79,70,229,0.6)] disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isLoading || (inputMode === "youtube" ? !youtubeUrl : !selectedFile)}
+                className="group relative flex items-center gap-2 overflow-hidden rounded-2xl bg-indigo-600 px-8 py-2.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(79,70,229,0.4)] transition-all hover:bg-indigo-500 hover:shadow-[0_0_25px_rgba(79,70,229,0.6)] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <div className="absolute inset-0 flex h-full w-full justify-center [transform:skew(-12deg)_translateX(-150%)] group-hover:duration-1000 group-hover:[transform:skew(-12deg)_translateX(150%)]">
                   <div className="relative h-full w-8 bg-white/20" />
@@ -134,25 +204,6 @@ export function DashboardShell() {
                 {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5 text-indigo-200" />}
                 <span className="relative">Process Lecture</span>
               </button>
-
-              <div className="flex items-center gap-3 rounded-2xl bg-slate-900/50 px-4 py-3 ring-1 ring-white/5">
-                <div className="rounded-full bg-indigo-500/20 p-2">
-                  {adaptiveMode ? (
-                    <SignalLow className="h-4 w-4 text-indigo-400" />
-                  ) : (
-                    <SignalHigh className="h-4 w-4 text-indigo-400" />
-                  )}
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Network Mode</p>
-                  <p className="text-sm font-semibold text-slate-200">
-                    {adaptiveMode ? "Adaptive Mode" : "Normal Mode"}
-                  </p>
-                </div>
-                <div className="ml-2">
-                  <Switch checked={adaptiveMode} onCheckedChange={setAdaptiveMode} />
-                </div>
-              </div>
             </div>
           </header>
 
@@ -169,7 +220,11 @@ export function DashboardShell() {
             </div>
           )}
 
-          <PlayerPanel adaptiveMode={adaptiveMode} />
+          <PlayerPanel 
+            adaptiveMode={false} 
+            mediaUrl={mediaUrl} 
+            mediaType={mediaType} 
+          />
           <TransformationTabs data={data} />
       </div>
     </main>

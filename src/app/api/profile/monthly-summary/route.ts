@@ -4,14 +4,13 @@ import { createClient } from "@supabase/supabase-js";
 
 export async function POST(req: Request) {
   try {
-    const { userId } = await req.json();
+    const { userId, authToken } = await req.json();
 
     if (!userId) {
       return NextResponse.json({ error: "userId is required" }, { status: 400 });
     }
 
     // Create a server-side Supabase client
-    // For API routes, we need to bypass RLS since there's no user session context
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     
@@ -19,7 +18,13 @@ export async function POST(req: Request) {
       throw new Error("Supabase credentials are not configured.");
     }
 
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    // If a token is provided, use it to authenticate as the user
+    // Otherwise use the provided key (likely anon or service role)
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      global: {
+        headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+      },
+    });
 
     // 1. Fetch ALL of the user's lectures
     const { data: lectures, error } = await supabase

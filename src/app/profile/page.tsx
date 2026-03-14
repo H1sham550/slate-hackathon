@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/dashboard/sidebar";
-import { CheckCircle2, History, Sparkles, LogOut, Loader2, ChevronDown, ChevronUp, FileText } from "lucide-react";
+import { CheckCircle2, History, Sparkles, LogOut, Loader2, ChevronDown, ChevronUp, FileText, RefreshCw } from "lucide-react";
 import { supabase, getUserWatchedClasses, signOutUser } from "@/lib/supabase";
 
 export default function ProfilePage() {
@@ -46,10 +46,13 @@ export default function ProfilePage() {
     if (!user) return;
     setIsGeneratingSummary(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const authToken = session?.access_token;
+
       const res = await fetch("/api/profile/monthly-summary", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: user.id }),
+        body: JSON.stringify({ userId: user.id, authToken }),
       });
       const data = await res.json();
       if (res.ok && data.success) {
@@ -95,8 +98,8 @@ export default function ProfilePage() {
           </div>
         ) : (
           <div className="grid gap-6 lg:grid-cols-3">
-            {/* Left Column: History + Notes */}
-            <div className="lg:col-span-2 space-y-6">
+            {/* Main Content: History + Notes (Full Width) */}
+            <div className="lg:col-span-3 space-y-6">
 
               {/* Stats Bar */}
               <div className="grid grid-cols-2 gap-4">
@@ -179,47 +182,63 @@ export default function ProfilePage() {
               </section>
             </div>
 
-            {/* Right Column: AI Summary */}
-            <div className="lg:col-span-1">
-              <section className="glass-panel sticky top-6 rounded-3xl p-6">
-                <div className="mb-4 flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-amber-400" />
-                  <h3 className="text-lg font-semibold text-slate-100">AI Summary</h3>
-                </div>
-
-                <p className="text-sm leading-relaxed text-slate-400 mb-4">
-                  Generate an AI-powered overview that synthesizes all your processed lectures into a cohesive learning summary with key themes and connections.
-                </p>
-
-                {monthlySummary ? (
-                  <div className="space-y-4">
-                    <div className="rounded-2xl border border-slate-800/60 bg-slate-900/40 p-5">
-                      <p className="text-sm leading-relaxed text-slate-300 whitespace-pre-wrap">
-                        {monthlySummary}
-                      </p>
+            {/* Bottom Section: AI Summary (Centered & Scrollable) */}
+            <div className="lg:col-span-3">
+              <section className="glass-panel overflow-hidden rounded-3xl p-8 md:p-10 border border-indigo-500/10 shadow-[0_0_40px_rgba(79,70,229,0.1)]">
+                <div className="mb-6 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-2xl bg-amber-500/10 p-2">
+                      <Sparkles className="h-6 w-6 text-amber-500" />
                     </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-slate-100">AI Learning Synthesis</h3>
+                      <p className="text-sm font-medium text-slate-500">A meta-summary of your entire lecture history</p>
+                    </div>
+                  </div>
+                  {monthlySummary && (
                     <button 
                       onClick={handleGenerateSummary}
                       disabled={isGeneratingSummary}
-                      className="w-full rounded-xl bg-slate-800/50 px-4 py-2.5 text-sm font-semibold text-slate-300 transition-all hover:bg-slate-700/60 ring-1 ring-white/10 disabled:opacity-50"
+                      className="flex items-center gap-2 rounded-xl bg-slate-800/50 px-4 py-2 text-xs font-bold uppercase tracking-wider text-slate-300 transition-all hover:bg-slate-700/60 ring-1 ring-white/10 disabled:opacity-50"
                     >
-                      {isGeneratingSummary ? "Regenerating..." : "Regenerate Summary"}
+                      {isGeneratingSummary ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                      Regenerate
+                    </button>
+                  )}
+                </div>
+
+                {!monthlySummary ? (
+                  <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-700/50 bg-slate-900/10 py-16 text-center">
+                    <p className="max-w-md text-sm leading-relaxed text-slate-400 mb-8">
+                      Click the button below to generate a comprehensive AI overview that synthesizes all your processed lectures into a cohesive study guide.
+                    </p>
+                    <button 
+                      onClick={handleGenerateSummary}
+                      disabled={isGeneratingSummary || classesCount === 0}
+                      className="group relative flex items-center justify-center overflow-hidden rounded-2xl bg-indigo-600 px-10 py-4 text-base font-bold text-white shadow-[0_0_25px_rgba(79,70,229,0.3)] transition-all hover:grow hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <div className="absolute inset-0 flex h-full w-full justify-center [transform:skew(-12deg)_translateX(-150%)] group-hover:duration-1000 group-hover:[transform:skew(-12deg)_translateX(150%)]">
+                        <div className="relative h-full w-12 bg-white/20" />
+                      </div>
+                      {isGeneratingSummary && <Loader2 className="mr-3 h-5 w-5 animate-spin" />}
+                      <span className="relative">
+                        {isGeneratingSummary ? "Synthesizing Knowledge..." : classesCount === 0 ? "Process a lecture first" : "Generate Comprehensive Summary"}
+                      </span>
                     </button>
                   </div>
                 ) : (
-                  <button 
-                    onClick={handleGenerateSummary}
-                    disabled={isGeneratingSummary || classesCount === 0}
-                    className="group relative flex w-full items-center justify-center overflow-hidden rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-bold text-white shadow-[0_0_20px_rgba(79,70,229,0.3)] transition-all hover:bg-indigo-500 hover:shadow-[0_0_30px_rgba(79,70,229,0.5)] disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <div className="absolute inset-0 flex h-full w-full justify-center [transform:skew(-12deg)_translateX(-150%)] group-hover:duration-1000 group-hover:[transform:skew(-12deg)_translateX(150%)]">
-                      <div className="relative h-full w-10 bg-white/20" />
+                  <div className="relative">
+                    <div className="max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+                      <div className="prose prose-invert prose-indigo max-w-full space-y-6 text-slate-300">
+                         {/* We assume the summary is markdown, but for now we render as text with pre-wrap */}
+                        <div className="whitespace-pre-wrap leading-relaxed text-base bg-slate-950/40 p-10 rounded-3xl border border-white/5 shadow-inner">
+                          {monthlySummary}
+                        </div>
+                      </div>
                     </div>
-                    {isGeneratingSummary && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
-                    <span className="relative">
-                      {isGeneratingSummary ? "Synthesizing..." : classesCount === 0 ? "Process lectures first" : "Generate AI Summary"}
-                    </span>
-                  </button>
+                    {/* Shadow indicators for scroll */}
+                    <div className="pointer-events-none absolute bottom-0 left-0 h-12 w-full bg-gradient-to-t from-slate-900/40 to-transparent" />
+                  </div>
                 )}
               </section>
             </div>
