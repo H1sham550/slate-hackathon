@@ -84,10 +84,13 @@ export async function signOutUser() {
 export async function getUserWatchedClasses(userId: string) {
   const { data, error } = await supabase
     .from('lectures')
-    .select('id, title, created_at')
+    .select('id, title, summary, hierarchical_notes, diagram_code, created_at')
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
 
-  if (error) throw error;
+  if (error) {
+    console.warn('Could not fetch watched classes:', error.message);
+    return []; // Gracefully return empty if table doesn't exist yet
+  }
   return data;
 }

@@ -1,18 +1,36 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { SignalHigh, SignalLow, Loader2, Sparkles } from "lucide-react";
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { PlayerPanel } from "@/components/dashboard/player-panel";
 import { TransformationTabs } from "@/components/dashboard/transformation-tabs";
 import { Switch } from "@/components/ui/switch";
 import { TransformationData } from "@/types";
+import { supabase, upload_lecture } from "@/lib/supabase";
 
 export function DashboardShell() {
+  const router = useRouter();
   const [adaptiveMode, setAdaptiveMode] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [data, setData] = useState<TransformationData | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function checkUser() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        router.push("/login"); // enforce authentication
+      } else {
+        setUserId(session.user.id);
+      }
+    }
+    checkUser();
+  }, [router]);
 
   const handleProcess = async () => {
     if (!selectedFile) {
@@ -21,6 +39,8 @@ export function DashboardShell() {
     }
 
     setIsLoading(true);
+    setErrorMessage(null);
+    setStatusMessage("Uploading & transcribing audio...");
     try {
       const formData = new FormData();
       formData.append("file", selectedFile);
@@ -32,28 +52,56 @@ export function DashboardShell() {
       });
       const transcribeData = await transcribeRes.json();
 
-      if (!transcribeRes.ok) throw new Error(transcribeData.error);
+      if (!transcribeRes.ok) throw new Error(transcribeData.error || "Transcription failed.");
 
-      // 2. Transform the text (pending GITHUB_TOKEN integration)
+      setStatusMessage("Generating notes, diagrams & quizzes with AI...");
+
+      // 2. Transform the text
       const transformRes = await fetch("/api/transform", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ transcript: transcribeData.text || "Simulated transcript" }),
       });
       const result = await transformRes.json();
+      
+      if (!transformRes.ok) throw new Error(result.error || "Transformation failed.");
+      
       setData(result);
-    } catch (error) {
+
+      // 3. Save the result to Supabase (non-blocking — don't crash the pipeline)
+      if (userId) {
+        try {
+          setStatusMessage("Saving to your profile...");
+          await upload_lecture({
+            user_id: userId,
+            title: selectedFile.name.replace(/\.[^/.]+$/, "") || "Untitled Lecture",
+            transcript: transcribeData.text,
+            hierarchical_notes: result.notes,
+            diagram_code: result.mermaidCode,
+            summary: result.summary,
+            quiz: result.quiz,
+          });
+        } catch (saveError: any) {
+          console.warn("Could not save to Supabase (table may not exist yet):", saveError.message);
+          // Don't throw — the user still gets their results
+        }
+      }
+
+      setStatusMessage("Done! Your lecture has been processed.");
+      
+    } catch (error: any) {
       console.error("Failed to process lecture", error);
+      setErrorMessage(error.message || "An unexpected error occurred.");
+      setStatusMessage(null);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <main className="min-h-screen p-4 md:p-6 lg:p-8">
-      <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-6 md:flex-row lg:gap-8">
-        <Sidebar />
-        <div className="flex-1 space-y-6">
+    <main className="min-h-screen md:ml-20 lg:ml-64 p-4 md:p-6 lg:p-8">
+      <Sidebar />
+      <div className="mx-auto max-w-[1100px] space-y-6">
           <header className="glass-panel flex flex-col gap-4 rounded-3xl p-6 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="neon-text text-2xl font-bold tracking-tight">Transformation Workspace</h1>
@@ -108,9 +156,21 @@ export function DashboardShell() {
             </div>
           </header>
 
+          {/* Status / Error Bar */}
+          {statusMessage && (
+            <div className="glass-panel flex items-center gap-3 rounded-2xl p-4">
+              {isLoading && <Loader2 className="h-5 w-5 animate-spin text-indigo-400" />}
+              <p className="text-sm font-medium text-indigo-300">{statusMessage}</p>
+            </div>
+          )}
+          {errorMessage && (
+            <div className="flex items-center gap-3 rounded-2xl border border-red-500/30 bg-red-500/10 p-4">
+              <p className="text-sm font-medium text-red-400">⚠️ {errorMessage}</p>
+            </div>
+          )}
+
           <PlayerPanel adaptiveMode={adaptiveMode} />
           <TransformationTabs data={data} />
-        </div>
       </div>
     </main>
   );

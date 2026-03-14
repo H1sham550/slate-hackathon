@@ -28,7 +28,7 @@ export function TransformationTabs({ data }: TransformationTabsProps) {
           <DiagramsPanel code={data?.mermaidCode} />
         </TabsContent>
         <TabsContent value="flashcards">
-          <FlashcardsPanel />
+          <FlashcardsPanel cards={data?.quiz} />
         </TabsContent>
         <TabsContent value="quiz">
           <QuizPanel questions={data?.quiz} />

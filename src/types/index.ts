@@ -5,6 +5,7 @@ export type QuizQuestion = {
 };
 
 export type TransformationData = {
+  summary?: string;
   notes?: string;
   mermaidCode?: string;
   quiz?: QuizQuestion[];

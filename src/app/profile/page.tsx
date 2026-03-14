@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/dashboard/sidebar";
-import { CheckCircle2, History, Sparkles, LogOut, Loader2 } from "lucide-react";
+import { CheckCircle2, History, Sparkles, LogOut, Loader2, ChevronDown, ChevronUp, FileText } from "lucide-react";
 import { supabase, getUserWatchedClasses, signOutUser } from "@/lib/supabase";
 
 export default function ProfilePage() {
@@ -11,6 +11,9 @@ export default function ProfilePage() {
   const [watchedClasses, setWatchedClasses] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
+  const [monthlySummary, setMonthlySummary] = useState<string | null>(null);
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+  const [expandedLecture, setExpandedLecture] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadProfile() {
@@ -39,124 +42,189 @@ export default function ProfilePage() {
     router.push("/login");
   };
 
+  const handleGenerateSummary = async () => {
+    if (!user) return;
+    setIsGeneratingSummary(true);
+    try {
+      const res = await fetch("/api/profile/monthly-summary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setMonthlySummary(data.summary);
+      } else {
+        alert(data.error || "Failed to generate summary. Process some lectures first!");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("An error occurred while generating the summary.");
+    } finally {
+      setIsGeneratingSummary(false);
+    }
+  };
+
   const classesCount = watchedClasses.length;
-  const targetClasses = 10;
-  const progressPercentage = Math.min((classesCount / targetClasses) * 100, 100);
-  const eligibleForSummary = classesCount >= targetClasses;
 
   return (
-    <main className="min-h-screen p-4 md:p-6 lg:p-8">
-      <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-6 md:flex-row lg:gap-8">
-        <Sidebar />
-        <div className="flex-1 space-y-6">
+    <main className="min-h-screen md:ml-20 lg:ml-64 p-4 md:p-6 lg:p-8">
+      <Sidebar />
+      <div className="mx-auto max-w-[1100px] space-y-6">
 
-          <header className="glass-panel flex flex-col gap-4 rounded-3xl p-6 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h1 className="neon-text text-2xl font-bold tracking-tight">Student Profile</h1>
-              <p className="mt-1 text-sm font-medium text-slate-400">
-                {user ? `Welcome back, ${user.user_metadata?.full_name || user.email}` : "Track your learning journey and earn monthly summaries."}
-              </p>
-            </div>
-            <button
-              onClick={handleSignOut}
-              className="flex items-center gap-2 rounded-xl bg-slate-800/50 px-4 py-2.5 text-sm font-semibold text-slate-300 transition-all hover:bg-red-500/20 hover:text-red-400 ring-1 ring-white/10 hover:ring-red-500/30"
-            >
-              <LogOut className="h-4 w-4" />
-              Sign Out
-            </button>
-          </header>
+        {/* Header */}
+        <header className="glass-panel flex flex-col gap-4 rounded-3xl p-6 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="neon-text text-2xl font-bold tracking-tight">Student Profile</h1>
+            <p className="mt-1 text-sm font-medium text-slate-400">
+              {user ? `Welcome back, ${user.user_metadata?.full_name || user.email}` : "Track your learning journey."}
+            </p>
+          </div>
+          <button
+            onClick={handleSignOut}
+            className="flex items-center gap-2 rounded-xl bg-slate-800/50 px-4 py-2.5 text-sm font-semibold text-slate-300 transition-all hover:bg-red-500/20 hover:text-red-400 ring-1 ring-white/10 hover:ring-red-500/30"
+          >
+            <LogOut className="h-4 w-4" />
+            Sign Out
+          </button>
+        </header>
 
-          {isLoading ? (
-            <div className="flex h-64 items-center justify-center rounded-3xl border border-slate-800/60 bg-slate-900/40">
-              <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
-            </div>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-3 md:gap-6">
-              <div className="md:col-span-2 space-y-4 md:space-y-6">
+        {isLoading ? (
+          <div className="flex h-64 items-center justify-center rounded-3xl border border-slate-800/60 bg-slate-900/40">
+            <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
+          </div>
+        ) : (
+          <div className="grid gap-6 lg:grid-cols-3">
+            {/* Left Column: History + Notes */}
+            <div className="lg:col-span-2 space-y-6">
 
-                {/* Progress Card */}
-                <section className="glass-panel rounded-3xl p-6">
-                  <div className="mb-4 flex items-center justify-between">
-                    <h3 className="text-lg font-semibold text-slate-100">Monthly Progress</h3>
-                    <span className="rounded-full bg-slate-800 px-3 py-1 text-xs font-semibold text-indigo-400">
-                      {classesCount} / {targetClasses} Classes
-                    </span>
-                  </div>
-
-                  <div className="mb-2 h-3 w-full overflow-hidden rounded-full bg-slate-800">
-                    <div
-                      className="h-full bg-indigo-500 transition-all duration-500"
-                      style={{ width: `${progressPercentage}%` }}
-                    />
-                  </div>
-                  <p className="text-sm text-slate-400">
-                    {eligibleForSummary
-                      ? "🎉 You've reached your goal! Your monthly summary is unlocked."
-                      : `Watch ${targetClasses - classesCount} more classes this month to unlock a comprehensive summary.`}
-                  </p>
-                </section>
-
-                {/* History Card */}
-                <section className="glass-panel rounded-3xl p-6">
-                  <div className="mb-4 flex items-center gap-2">
-                    <History className="h-5 w-5 text-indigo-400" />
-                    <h3 className="text-lg font-semibold text-slate-100">Watched Classes</h3>
-                  </div>
-                  <div className="space-y-3">
-                    {watchedClasses.map((item) => (
-                      <div key={item.id} className="flex items-center justify-between rounded-2xl border border-slate-800/60 bg-slate-900/40 p-4 transition-all hover:bg-slate-800/60">
-                        <div className="flex items-center gap-3">
-                          <CheckCircle2 className="h-5 w-5 text-emerald-400" />
-                          <span className="font-medium text-slate-300">{item.title}</span>
-                        </div>
-                        <span className="text-sm text-slate-500">{new Date(item.created_at).toLocaleDateString()}</span>
-                      </div>
-                    ))}
-                    {watchedClasses.length === 0 && (
-                      <p className="text-sm italic text-slate-500">No classes watched yet this month.</p>
-                    )}
-                  </div>
-                </section>
-
+              {/* Stats Bar */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="glass-panel rounded-2xl p-5 text-center">
+                  <p className="text-3xl font-bold text-indigo-400">{classesCount}</p>
+                  <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-slate-500">Lectures Processed</p>
+                </div>
+                <div className="glass-panel rounded-2xl p-5 text-center">
+                  <p className="text-3xl font-bold text-emerald-400">{classesCount > 0 ? Math.round(classesCount * 100 / Math.max(classesCount, 1)) : 0}%</p>
+                  <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-slate-500">Completion Rate</p>
+                </div>
               </div>
 
-              {/* Monthly Summary Sidebar */}
-              <div className="md:col-span-1">
-                <section className="glass-panel sticky top-6 rounded-3xl p-6">
-                  <div className="mb-4 flex items-center gap-2">
-                    <Sparkles className="h-5 w-5 text-amber-400" />
-                    <h3 className="text-lg font-semibold text-slate-100">Monthly AI Summary</h3>
+              {/* History & Saved Notes Card */}
+              <section className="glass-panel rounded-3xl p-6">
+                <div className="mb-4 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <History className="h-5 w-5 text-indigo-400" />
+                    <h3 className="text-lg font-semibold text-slate-100">Lecture History & Notes</h3>
                   </div>
-
-                  {eligibleForSummary ? (
-                    <div className="space-y-4">
-                      <p className="text-sm leading-relaxed text-slate-300">
-                        <strong>Great job!</strong> Here is a synthesized overview of the 10 classes you watched this month:
-                      </p>
-                      <div className="rounded-2xl border border-slate-800/60 bg-slate-900/40 p-5">
-                        <p className="text-sm italic text-slate-400">
-                          "This month, you successfully moved from basic neural network architectures into deep dives on backpropagation and regularization. A key takeaway across all lectures is optimizing the loss space..."
-                        </p>
-                      </div>
-                      <button className="group relative mt-2 flex w-full items-center justify-center overflow-hidden rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-bold text-white shadow-[0_0_20px_rgba(79,70,229,0.3)] transition-all hover:bg-indigo-500 hover:shadow-[0_0_30px_rgba(79,70,229,0.5)]">
-                        <div className="absolute inset-0 flex h-full w-full justify-center [transform:skew(-12deg)_translateX(-150%)] group-hover:duration-1000 group-hover:[transform:skew(-12deg)_translateX(150%)]">
-                          <div className="relative h-full w-10 bg-white/20" />
+                  <span className="rounded-full bg-slate-800 px-3 py-1 text-xs font-semibold text-indigo-400">
+                    {classesCount} lectures
+                  </span>
+                </div>
+                <div className="space-y-3">
+                  {watchedClasses.map((item) => (
+                    <div key={item.id} className="rounded-2xl border border-slate-800/60 bg-slate-900/40 transition-all hover:bg-slate-800/40">
+                      <button
+                        onClick={() => setExpandedLecture(expandedLecture === item.id ? null : item.id)}
+                        className="flex w-full items-center justify-between p-4"
+                      >
+                        <div className="flex items-center gap-3">
+                          <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0" />
+                          <div className="text-left">
+                            <span className="font-medium text-slate-300">{item.title}</span>
+                            <p className="text-xs text-slate-500 mt-0.5">{new Date(item.created_at).toLocaleDateString()}</p>
+                          </div>
                         </div>
-                        <span className="relative">View Full Report</span>
+                        <div className="flex items-center gap-2">
+                          {item.hierarchical_notes && <FileText className="h-4 w-4 text-indigo-400" />}
+                          {expandedLecture === item.id 
+                            ? <ChevronUp className="h-4 w-4 text-slate-500" />
+                            : <ChevronDown className="h-4 w-4 text-slate-500" />
+                          }
+                        </div>
                       </button>
+                      
+                      {/* Expanded Notes */}
+                      {expandedLecture === item.id && (
+                        <div className="border-t border-slate-800/60 px-4 pb-4 pt-3 space-y-3">
+                          {item.summary && (
+                            <div>
+                              <p className="text-xs font-bold uppercase tracking-wider text-indigo-400 mb-1">Summary</p>
+                              <p className="text-sm text-slate-300 leading-relaxed">{item.summary}</p>
+                            </div>
+                          )}
+                          {item.hierarchical_notes && (
+                            <div>
+                              <p className="text-xs font-bold uppercase tracking-wider text-indigo-400 mb-1">Notes</p>
+                              <pre className="whitespace-pre-wrap font-sans text-sm leading-6 text-slate-400 max-h-[300px] overflow-y-auto rounded-xl bg-slate-950/50 p-4">
+                                {item.hierarchical_notes}
+                              </pre>
+                            </div>
+                          )}
+                          {!item.summary && !item.hierarchical_notes && (
+                            <p className="text-sm italic text-slate-500">No saved notes for this lecture.</p>
+                          )}
+                        </div>
+                      )}
                     </div>
-                  ) : (
-                    <div className="flex min-h-[200px] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-700/50 bg-slate-900/20 p-6 text-center">
-                      <Sparkles className="mb-2 h-8 w-8 text-slate-700" />
-                      <p className="text-sm font-medium text-slate-500">Summary Locked</p>
-                      <p className="mt-1 text-xs text-slate-600">Complete {targetClasses} classes to generate AI synthesis.</p>
+                  ))}
+                  {watchedClasses.length === 0 && (
+                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                      <History className="mb-3 h-10 w-10 text-slate-700" />
+                      <p className="text-sm font-medium text-slate-500">No lectures yet</p>
+                      <p className="mt-1 text-xs text-slate-600">Process a lecture from the Dashboard to see it here.</p>
                     </div>
                   )}
-                </section>
-              </div>
+                </div>
+              </section>
             </div>
-          )}
-        </div>
+
+            {/* Right Column: AI Summary */}
+            <div className="lg:col-span-1">
+              <section className="glass-panel sticky top-6 rounded-3xl p-6">
+                <div className="mb-4 flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-amber-400" />
+                  <h3 className="text-lg font-semibold text-slate-100">AI Summary</h3>
+                </div>
+
+                <p className="text-sm leading-relaxed text-slate-400 mb-4">
+                  Generate an AI-powered overview that synthesizes all your processed lectures into a cohesive learning summary with key themes and connections.
+                </p>
+
+                {monthlySummary ? (
+                  <div className="space-y-4">
+                    <div className="rounded-2xl border border-slate-800/60 bg-slate-900/40 p-5">
+                      <p className="text-sm leading-relaxed text-slate-300 whitespace-pre-wrap">
+                        {monthlySummary}
+                      </p>
+                    </div>
+                    <button 
+                      onClick={handleGenerateSummary}
+                      disabled={isGeneratingSummary}
+                      className="w-full rounded-xl bg-slate-800/50 px-4 py-2.5 text-sm font-semibold text-slate-300 transition-all hover:bg-slate-700/60 ring-1 ring-white/10 disabled:opacity-50"
+                    >
+                      {isGeneratingSummary ? "Regenerating..." : "Regenerate Summary"}
+                    </button>
+                  </div>
+                ) : (
+                  <button 
+                    onClick={handleGenerateSummary}
+                    disabled={isGeneratingSummary || classesCount === 0}
+                    className="group relative flex w-full items-center justify-center overflow-hidden rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-bold text-white shadow-[0_0_20px_rgba(79,70,229,0.3)] transition-all hover:bg-indigo-500 hover:shadow-[0_0_30px_rgba(79,70,229,0.5)] disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <div className="absolute inset-0 flex h-full w-full justify-center [transform:skew(-12deg)_translateX(-150%)] group-hover:duration-1000 group-hover:[transform:skew(-12deg)_translateX(150%)]">
+                      <div className="relative h-full w-10 bg-white/20" />
+                    </div>
+                    {isGeneratingSummary && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
+                    <span className="relative">
+                      {isGeneratingSummary ? "Synthesizing..." : classesCount === 0 ? "Process lectures first" : "Generate AI Summary"}
+                    </span>
+                  </button>
+                )}
+              </section>
+            </div>
+          </div>
+        )}
       </div>
     </main>
   );
