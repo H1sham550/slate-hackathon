@@ -1,86 +1,100 @@
 "use client";
 
-import { useState } from "react";
-import { SignalHigh, SignalLow, Loader2, Sparkles } from "lucide-react";
-import { Sidebar } from "@/components/dashboard/sidebar";
-import { PlayerPanel } from "@/components/dashboard/player-panel";
-import { TransformationTabs } from "@/components/dashboard/transformation-tabs";
+import React, { useState } from "react";
+import { Sidebar } from "./sidebar";
+import { PlayerPanel } from "./player-panel";
+import { LowBandwidthPlaceholder } from "./low-bandwidth-placeholder";
+import { TransformationTabs } from "./transformation-tabs";
 import { Switch } from "@/components/ui/switch";
+import { GlassButton } from "@/components/ui/glass-button";
 import { TransformationData } from "@/types";
+import { Sparkles, Wifi, WifiOff } from "lucide-react";
 
 export function DashboardShell() {
   const [adaptiveMode, setAdaptiveMode] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [transcript, setTranscript] = useState("");
   const [data, setData] = useState<TransformationData | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleProcess = async () => {
-    setIsLoading(true);
+  const handleTransform = async () => {
+    if (!transcript.trim()) return;
+    setLoading(true);
     try {
-      const response = await fetch("/api/transform", {
+      const res = await fetch("/api/transform", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transcript: "Simulated transcription..." }),
+        body: JSON.stringify({ transcript }),
       });
-      const result = await response.json();
-      setData(result);
-    } catch (error) {
-      console.error("Failed to process lecture", error);
+      const json = await res.json();
+      setData(json);
+    } catch (e) {
+      console.error(e);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   return (
-    <main className="min-h-screen p-4 md:p-6 lg:p-8">
-      <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-6 md:flex-row lg:gap-8">
-        <Sidebar />
-        <div className="flex-1 space-y-6">
-          <header className="glass-panel flex flex-col gap-4 rounded-3xl p-6 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h1 className="neon-text text-2xl font-bold tracking-tight">Transformation Workspace</h1>
-              <p className="mt-1 text-sm font-medium text-slate-400">
-                Convert raw lectures into adaptive learning artifacts instantly.
-              </p>
+    <div className="min-h-screen flex">
+      <Sidebar />
+
+      <main className="flex-1 flex flex-col overflow-hidden">
+        {/* Header */}
+        <header className="px-8 py-5 border-b border-white/10 bg-slate-900/40 backdrop-blur-xl flex items-center justify-between gap-4 shrink-0">
+          <div>
+            <h1 className="text-2xl font-bold text-white">Transformation Workspace</h1>
+            <p className="text-slate-400 text-sm mt-0.5">Convert raw lectures into adaptive learning artifacts instantly.</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10">
+              {adaptiveMode ? <WifiOff className="w-4 h-4 text-amber-400" /> : <Wifi className="w-4 h-4 text-emerald-400" />}
+              <span className="text-sm text-slate-300 font-medium">
+                {adaptiveMode ? "Adaptive Mode" : "Normal Mode"}
+              </span>
+              <Switch
+                checked={adaptiveMode}
+                onCheckedChange={setAdaptiveMode}
+                aria-label="Toggle network mode"
+              />
             </div>
-            
-            <div className="flex flex-wrap items-center gap-4">
-              <button
-                onClick={handleProcess}
-                disabled={isLoading}
-                className="group relative flex items-center gap-2 overflow-hidden rounded-2xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-[0_0_20px_rgba(79,70,229,0.4)] transition-all hover:bg-indigo-500 hover:shadow-[0_0_25px_rgba(79,70,229,0.6)] disabled:opacity-50"
+          </div>
+        </header>
+
+        {/* Body */}
+        <div className="flex-1 overflow-auto p-8 grid lg:grid-cols-5 gap-6">
+
+          {/* Left panel */}
+          <div className="lg:col-span-2 flex flex-col gap-6">
+            {adaptiveMode ? <LowBandwidthPlaceholder /> : <PlayerPanel />}
+
+            {/* Transcript Input */}
+            <div className="glass-panel rounded-3xl p-6 space-y-4">
+              <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider">Transcript / Paste Text</h3>
+              <textarea
+                value={transcript}
+                onChange={(e) => setTranscript(e.target.value)}
+                rows={6}
+                placeholder="Paste your lecture transcript here to generate notes, diagrams, flashcards and a quiz..."
+                className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-sm text-slate-200 placeholder:text-slate-600 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
+              />
+              <GlassButton
+                className="w-full flex items-center justify-center gap-2"
+                size="default"
+                onClick={handleTransform}
+                disabled={loading || !transcript.trim()}
               >
-                <div className="absolute inset-0 flex h-full w-full justify-center [transform:skew(-12deg)_translateX(-150%)] group-hover:duration-1000 group-hover:[transform:skew(-12deg)_translateX(150%)]">
-                  <div className="relative h-full w-8 bg-white/20" />
-                </div>
-                {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5 text-indigo-200" />}
-                <span className="relative">Process Lecture</span>
-              </button>
-
-              <div className="flex items-center gap-3 rounded-2xl bg-slate-900/50 px-4 py-3 ring-1 ring-white/5">
-                <div className="rounded-full bg-indigo-500/20 p-2">
-                  {adaptiveMode ? (
-                    <SignalLow className="h-4 w-4 text-indigo-400" />
-                  ) : (
-                    <SignalHigh className="h-4 w-4 text-indigo-400" />
-                  )}
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Network Mode</p>
-                  <p className="text-sm font-semibold text-slate-200">
-                    {adaptiveMode ? "Adaptive Mode" : "Normal Mode"}
-                  </p>
-                </div>
-                <div className="ml-2">
-                  <Switch checked={adaptiveMode} onCheckedChange={setAdaptiveMode} />
-                </div>
-              </div>
+                <Sparkles className="w-4 h-4" />
+                {loading ? "Transforming..." : "Transform Lecture"}
+              </GlassButton>
             </div>
-          </header>
+          </div>
 
-          <PlayerPanel adaptiveMode={adaptiveMode} />
-          <TransformationTabs data={data} />
+          {/* Right panel - Transformation tabs */}
+          <div className="lg:col-span-3">
+            <TransformationTabs data={data} />
+          </div>
         </div>
-      </div>
-    </main>
+      </main>
+    </div>
   );
 }

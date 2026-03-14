@@ -1,33 +1,24 @@
-import { PlayCircle } from "lucide-react";
-import { LowBandwidthPlaceholder } from "@/components/dashboard/low-bandwidth-placeholder";
+import { Play, Volume2 } from "lucide-react";
 
-type PlayerPanelProps = {
-  adaptiveMode: boolean;
-};
-
-export function PlayerPanel({ adaptiveMode }: PlayerPanelProps) {
-  if (adaptiveMode) {
-    return <LowBandwidthPlaceholder />;
-  }
-
+export function PlayerPanel() {
   return (
-    <section className="glass-panel rounded-3xl p-6">
-      <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-slate-100">Lecture Player</h3>
-        <div className="flex items-center gap-2 text-xs text-slate-400">
-          <PlayCircle className="h-4 w-4 text-indigo-400" />
-          Streaming in Normal Mode
+    <section className="glass-panel rounded-3xl p-6 space-y-5">
+      <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider">Lecture Player</h3>
+      <div className="aspect-video bg-slate-950/80 rounded-2xl border border-white/10 flex flex-col items-center justify-center gap-4">
+        <div className="w-16 h-16 rounded-full bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center cursor-pointer hover:bg-indigo-500/30 transition-colors">
+          <Play className="w-7 h-7 text-indigo-400 ml-1" fill="currentColor" />
         </div>
+        <p className="text-slate-500 text-sm">Upload a lecture file to begin playback</p>
       </div>
-      <div className="aspect-video w-full overflow-hidden rounded-2xl border border-slate-800/60 bg-slate-950/50 shadow-inner">
-        <video
-          className="h-full w-full"
-          controls
-          preload="metadata"
-          poster="https://images.unsplash.com/photo-1434030216411-0b793f4b4173?q=80&w=1400&auto=format&fit=crop"
-        >
-          <source src="" type="video/mp4" />
-        </video>
+      <div className="space-y-2">
+        <div className="h-1 w-full bg-slate-800 rounded-full overflow-hidden">
+          <div className="bg-gradient-to-r from-indigo-500 to-violet-500 h-full w-[35%] rounded-full" />
+        </div>
+        <div className="flex justify-between text-xs text-slate-500">
+          <span>16:15</span>
+          <Volume2 className="w-4 h-4" />
+          <span>45:20</span>
+        </div>
       </div>
     </section>
   );

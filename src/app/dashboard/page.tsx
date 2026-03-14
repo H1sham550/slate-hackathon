@@ -1,5 +1,5 @@
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 
-export default function HomePage() {
+export default function DashboardPage() {
   return <DashboardShell />;
 }

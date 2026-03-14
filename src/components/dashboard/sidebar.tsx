@@ -1,39 +1,62 @@
+"use client";
+
 import Link from "next/link";
-import { BookOpenText, GitBranch, Settings } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { LayoutDashboard, BookOpen, Settings, LogOut, Zap } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const navItems = [
-  { label: "Recent Lectures", icon: BookOpenText },
-  { label: "Knowledge Graph", icon: GitBranch },
-  { label: "Settings", icon: Settings }
+  { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+  { href: "/lectures", icon: BookOpen, label: "All Lectures" },
 ];
 
 export function Sidebar() {
+  const pathname = usePathname();
+
   return (
-    <aside className="glass-panel w-full shrink-0 flex-col rounded-3xl p-6 md:flex md:w-72 md:min-h-[calc(100vh-4rem)]">
-      <div className="mb-8">
-        <p className="Neon-text text-[10px] font-bold uppercase tracking-[0.3em] text-indigo-400">
-          S.L.A.T.E.
-        </p>
-        <h2 className="mt-2 text-xl font-bold tracking-tight text-white drop-shadow-md">Learning Engine</h2>
+    <aside className="w-64 border-r border-white/10 bg-slate-900/60 backdrop-blur-xl hidden md:flex flex-col shrink-0">
+      <div className="p-6 border-b border-white/10">
+        <Link href="/" className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center">
+            <Zap className="w-4 h-4 text-indigo-400" />
+          </div>
+          <h1 className="text-2xl font-black tracking-tighter neon-text">SLATE</h1>
+        </Link>
+        <p className="text-xs text-slate-600 mt-1 ml-10">Learning Engine</p>
       </div>
-      <nav className="flex-1 space-y-2">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const href = item.label === "Settings" || item.label === "Recent Lectures" ? "/profile" : "/dashboard";
-          return (
-            <Link
-              href={href}
-              key={item.label}
-              className="group flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-medium text-slate-400 transition-all hover:bg-white/5 hover:text-indigo-400"
-            >
-              <div className="flex items-center justify-center rounded-xl bg-slate-800/50 p-2 shadow-inner ring-1 ring-white/10 group-hover:bg-indigo-500/20 group-hover:ring-indigo-500/30">
-                <Icon className="h-4 w-4" />
-              </div>
-              {item.label}
-            </Link>
-          );
-        })}
+
+      <nav className="flex-1 px-3 py-4 space-y-1">
+        {navItems.map(({ href, icon: Icon, label }) => (
+          <Link
+            key={href}
+            href={href}
+            className={cn(
+              "flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition-all",
+              pathname.startsWith(href)
+                ? "bg-indigo-500/15 text-indigo-300 border border-indigo-500/25"
+                : "text-slate-400 hover:text-white hover:bg-white/5"
+            )}
+          >
+            <Icon className="w-5 h-5 shrink-0" />
+            {label}
+          </Link>
+        ))}
       </nav>
+
+      <div className="p-3 border-t border-white/10 space-y-1">
+        <Link
+          href="/settings"
+          className="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all text-sm"
+        >
+          <Settings className="w-5 h-5 shrink-0" /> Settings
+        </Link>
+        <Link
+          href="/login"
+          className="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all text-sm"
+        >
+          <LogOut className="w-5 h-5 shrink-0" /> Logout
+        </Link>
+      </div>
     </aside>
   );
 }
