@@ -19,7 +19,7 @@ export function Sidebar() {
       <nav className="flex-1 space-y-2">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const href = item.label === "Settings" || item.label === "Recent Lectures" ? "/profile" : "/";
+          const href = item.label === "Settings" || item.label === "Recent Lectures" ? "/profile" : "/dashboard";
           return (
             <Link
               href={href}
